@@ -1,40 +1,80 @@
-{  
-"route": {
-    "geoip": {
-      "path": "geo-assets\\sagernet-sing-geoip-geoip.db"
-    },
-    "geosite": {
-      "path": "geo-assets\\sagernet-sing-geosite-geosite.db"
-    },
-    "rules": [
+{
+  "log": {
+    "level": "warn",
+    "output": "box.log",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
       {
-        "inbound": "dns-in",
-        "outbound": "dns-out"
+        "tag": "dns-remote",
+        "address": "udp://1.1.1.1",
+        "address_resolver": "dns-direct"
       },
       {
-        "port": 53,
-        "outbound": "dns-out"
+        "tag": "dns-trick-direct",
+        "address": "https://sky.rethinkdns.com/",
+        "detour": "direct-fragment"
       },
       {
-        "clash_mode": "Direct",
-        "outbound": "direct"
+        "tag": "dns-direct",
+        "address": "1.1.1.1",
+        "address_resolver": "dns-local",
+        "detour": "direct"
       },
       {
-        "clash_mode": "Global",
-        "outbound": "select"
+        "tag": "dns-local",
+        "address": "local",
+        "detour": "direct"
+      },
+      {
+        "tag": "dns-block",
+        "address": "rcode://success"
       }
     ],
-    "auto_detect_interface": true,
-    "override_android_vpn": true
+    "rules": [
+      {
+        "domain": "connectivitycheck.gstatic.com",
+        "server": "dns-remote",
+        "rewrite_ttl": 3000
+      }
+    ],
+    "final": "dns-remote",
+    "static_ips": {
+      "sky.rethinkdns.com": [
+        "104.17.147.22",
+        "104.17.148.22",
+        "188.114.96.3",
+        "188.114.97.3"
+      ]
+    },
+    "independent_cache": true
   },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "mixed-in",
+      "listen": "127.0.0.1",
+      "listen_port": 12334,
+      "sniff": true,
+      "sniff_override_destination": true,
+      "set_system_proxy": true
+    },
+    {
+      "type": "direct",
+      "tag": "dns-in",
+      "listen": "127.0.0.1",
+      "listen_port": 16450
+    }
+  ],
   "outbounds": [
     {
       "type": "selector",
       "tag": "select",
       "outbounds": [
         "auto",
-        "IP->Iran, Yotube:MisaHiro",
-        "IP->Main, Yotube:MisaHiro"
+        "IP-\u003eIran, Yotube:MisaHiro",
+        "IP-\u003eMain, Yotube:MisaHiro"
       ],
       "default": "auto"
     },
@@ -42,15 +82,17 @@
       "type": "urltest",
       "tag": "auto",
       "outbounds": [
-        "IP->Iran, Yotube:MisaHiro",
-        "IP->Main, Yotube:MisaHiro"
+        "IP-\u003eIran, Yotube:MisaHiro",
+        "IP-\u003eMain, Yotube:MisaHiro"
       ],
-      "url": "http://cp.cloudflare.com/",
-      "interval": "10m0s"
+      "url": "http://connectivitycheck.gstatic.com/generate_204",
+      "interval": "10m0s",
+      "tolerance": 1,
+      "idle_timeout": "30m0s"
     },
     {
       "type": "wireguard",
-      "tag": "IP->Iran, Yotube:MisaHiro",
+      "tag": "IP-\u003eIran, Yotube:MisaHiro",
       "local_address": [
         "172.16.0.2/32",
         "2606:4700:110:8c91:4063:21d0:7dd5:f218/128"
@@ -65,19 +107,18 @@
     },
     {
       "type": "wireguard",
-      "tag": "IP->Main, Yotube:MisaHiro",
-      "detour": "IP->Iran, Yotube:MisaHiro",
+      "tag": "IP-\u003eMain, Yotube:MisaHiro",
+      "detour": "IP-\u003eIran, Yotube:MisaHiro",
       "local_address": [
         "172.16.0.2/32",
         "2606:4700:110:8c15:3f90:ad2d:8810:77f3/128"
       ],
       "private_key": "CCC/TQTc82ub9i8f37Rpix2v425Sv/mxTzvE/iKRMkw=",
-      "server": "162.159.195.93",
-      "server_port": 2506,
+      "server": "162.159.195.209",
+      "server_port": 1843,
       "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
       "reserved": "AAAA",
-      "mtu": 1280,
-      "fake_packets": "5-10"
+      "mtu": 1230
     },
     {
       "type": "dns",
@@ -89,11 +130,45 @@
     },
     {
       "type": "direct",
+      "tag": "direct-fragment",
+      "tls_fragment": {
+        "enabled": true,
+        "size": "10-30",
+        "sleep": "2-8"
+      }
+    },
+    {
+      "type": "direct",
       "tag": "bypass"
     },
     {
       "type": "block",
       "tag": "block"
     }
-  ]  
+  ],
+  "route": {
+    "rules": [
+      {
+        "inbound": "dns-in",
+        "outbound": "dns-out"
+      },
+      {
+        "port": 53,
+        "outbound": "dns-out"
+      }
+    ],
+    "final": "select",
+    "auto_detect_interface": true,
+    "override_android_vpn": true
+  },
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "path": "clash.db"
+    },
+    "clash_api": {
+      "external_controller": "127.0.0.1:16756",
+      "secret": "s68feduXt_JlsYjC"
+    }
+  }
 }
